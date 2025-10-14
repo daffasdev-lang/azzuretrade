@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Azzure</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/2.1.0/showdown.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        :root {
+            --background: #f7f8fc; 
+            --surface: #ffffff; 
+            --primary: #4f46e5; 
+            --primary-hover: #4338ca;
+            --text-primary: #1f2937; 
+            --text-secondary: #6b7280; 
+            --user-bubble: var(--primary);
+            --bot-bubble: #eef2ff; 
+            --border-color: #e5e7eb;
+            --glass-bg: rgba(255, 255, 255, 0.65);
+            --glass-border: rgba(255, 255, 255, 0.25);
+        }
+        * { box-sizing: border-box; }
+        html, body { height: 100%; width: 100%; margin: 0; overflow: hidden; }
+        body {
+            font-family: 'Inter', sans-serif; 
+            background: linear-gradient(170deg, #f7f8fc, #eef2ff);
+            display: flex;
+            justify-content: center; 
+            align-items: center; 
+            color: var(--text-primary);
+        }
+        .chat-container {
+            width: 100%; 
+            height: 100%; 
+            background-color: var(--surface);
+            display: flex; 
+            flex-direction: column; 
+            overflow: hidden; 
+            position: relative;
+            border-radius: 24px;
+            box-shadow: 0 20px 50px -10px rgba(79, 70, 229, 0.2);
+            transform: scale(1);
+            animation: scaleIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes scaleIn {
+            from { transform: scale(0.95); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .dynamic-island {
+            position: absolute; top: 20px; left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            padding: 10px 24px;
+            font-weight: 600; 
+            font-size: 16px; 
+            color: var(--text-primary);
+            background: var(--glass-bg);
+            backdrop-filter: blur(18px) saturate(180%);
+            -webkit-backdrop-filter: blur(18px) saturate(180%);
+            border: 1px solid var(--glass-border); 
+            border-radius: 30px; 
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+            display: flex; 
+            align-items: center; 
+            gap: 12px;
+            transition: all 0.3s ease-in-out;
+        }
+
+        .processing-spinner {
+            width: 18px; height: 18px; 
+            border: 2px solid var(--primary); 
+            border-top-color: transparent;
+            border-radius: 50%; 
+            animation: spin 1s linear infinite; 
+            display: none;
+            transition: opacity 0.3s ease;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .chat-box {
+            flex-grow: 1; padding: 24px; padding-top: 80px; overflow-y: auto;
+        }
+        .message { 
+            margin-bottom: 20px; 
+            display: flex; 
+            flex-direction: column; 
+        }
+        @keyframes message-in-user {
+            from { opacity: 0; transform: translateY(20px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes message-in-bot {
+            from { opacity: 0; transform: translateY(20px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .bot-message { 
+            align-items: flex-start; 
+            animation: message-in-bot 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            transform-origin: bottom left;
+        }
+        .user-message { 
+            align-items: flex-end; 
+            animation: message-in-user 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            transform-origin: bottom right;
+        }
+        .message .text {
+            padding: 12px 18px; 
+            border-radius: 20px; 
+            max-width: 80%;
+            word-wrap: break-word; 
+            line-height: 1.5; 
+            font-size: 15px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        .bot-message .text { background-color: var(--bot-bubble); color: var(--text-primary); border-bottom-left-radius: 4px; }
+        .user-message .text { background-color: var(--user-bubble); color: white; border-bottom-right-radius: 4px; }
+        .input-area {
+            padding: 12px 24px; display: flex; flex-direction: column; gap: 8px;
+            align-items: stretch; border-top: 1px solid var(--border-color);
+            background-color: var(--surface); flex-shrink: 0;
+        }
+        .main-input-row { display: flex; gap: 12px; align-items: center; }
+        .attachment-indicator {
+            display: none; padding: 6px 8px 6px 12px; background-color: var(--bot-bubble);
+            border-radius: 12px; font-size: 13px; color: var(--text-secondary);
+            align-items: center; gap: 8px; animation: fadeIn 0.3s;
+            max-width: fit-content;
+        }
+        .attachment-indicator span {
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px;
+        }
+        .remove-attachment-btn {
+            background: none; border: none; padding: 4px; cursor: pointer; color: var(--text-secondary);
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            transition: background-color 0.2s;
+        }
+        .remove-attachment-btn:hover { background-color: rgba(0,0,0,0.1); }
+        .input-wrapper {
+            flex-grow: 1; display: flex; align-items: center;
+            background-color: var(--background); border-radius: 24px; padding: 4px;
+            transition: box-shadow 0.2s;
+        }
+        .input-wrapper:focus-within {
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+        }
+        #userInput {
+            flex-grow: 1; border: none; background: none; padding: 8px 16px; font-size: 15px;
+            outline: none; color: var(--text-primary);
+        }
+        .icon-button {
+            background-color: transparent; border: none; padding: 8px; cursor: pointer;
+            color: var(--text-secondary); border-radius: 50%; display: flex; align-items: center;
+            justify-content: center; transition: background-color 0.2s, color 0.2s;
+        }
+        .icon-button:hover { background-color: var(--bot-bubble); color: var(--primary); }
+        #fileLabel { margin-left: 8px; }
+        #fileInput { display: none; }
+        #sendButton {
+            background-color: var(--primary); color: white; border: none; border-radius: 50%; width: 40px;
+            height: 40px; font-size: 20px; cursor: pointer; flex-shrink: 0; display: flex;
+            align-items: center; justify-content: center; transition: background-color 0.2s, transform 0.1s;
+        }
+        #sendButton:hover { background-color: var(--primary-hover); }
+        #sendButton:active { transform: scale(0.9); }
+        .message .text table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+        .message .text th, .message .text td { border: 1px solid var(--border-color); padding: 10px; text-align: left; }
+        .message .text th { background-color: var(--bot-bubble); font-weight: 600; }
+    </style>
+</head>
+<body>
+
+<div class="chat-container">
+    <div class="dynamic-island" id="dynamicIsland">
+        <div class="processing-spinner" id="processingSpinner"></div>
+        <span id="headerText">Data Azzure</span>
+    </div>
+    
+    <div class="chat-box" id="chatBox">
+        <div class="message bot-message">
+            <span class="text"><p>Halo! Silakan ajukan pertanyaan atau lampirkan file data untuk dianalisis.</p></span>
+        </div>
+    </div>
+    <div class="input-area">
+        <div class="attachment-indicator" id="attachmentIndicator">
+            <span id="attachmentFilename"></span>
+            <button class="remove-attachment-btn" id="removeAttachmentBtn" title="Hapus File">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+        </div>
+        <div class="main-input-row">
+            <div class="input-wrapper">
+                <label for="fileInput" id="fileLabel" class="icon-button" title="Lampirkan File">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+                </label>
+                <input type="file" id="fileInput">
+                <input type="text" id="userInput" placeholder="Ketik pesan atau lampirkan file...">
+            </div>
+            <button id="sendButton" title="Kirim Pesan">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- KONFIGURASI WAJIB ---
+    const N8N_WEBHOOK_URL = 'https://devdaffas-n8n-free.hf.space/webhook-test/azzuretrade';
+    const API_KEY = '';
+    // -------------------------
+
+    // Ambil semua elemen DOM
+    const chatBox = document.getElementById('chatBox');
+    const userInput = document.getElementById('userInput');
+    const fileInput = document.getElementById('fileInput');
+    const sendButton = document.getElementById('sendButton');
+    const dynamicIsland = document.getElementById('dynamicIsland');
+    const headerText = document.getElementById('headerText');
+    const processingSpinner = document.getElementById('processingSpinner');
+    const attachmentIndicator = document.getElementById('attachmentIndicator');
+    const attachmentFilename = document.getElementById('attachmentFilename');
+    const removeAttachmentBtn = document.getElementById('removeAttachmentBtn');
+
+    // Inisialisasi library dan variabel sesi
+    const converter = new showdown.Converter({ tables: true });
+    const sessionId = `session-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    
+    // --- FUNGSI-FUNGSI UTAMA ---
+    const addMessage = (content, sender) => {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${sender}-message`;
+        const textSpan = document.createElement('span');
+        textSpan.className = 'text';
+        textSpan.innerHTML = content;
+        messageDiv.appendChild(textSpan);
+        chatBox.appendChild(messageDiv);
+        chatBox.scrollTop = chatBox.scrollHeight;
+        return messageDiv;
+    };
+
+    const toggleProcessingState = (isProcessing) => {
+        // Intentionally left blank to completely isolate the dynamic island
+        // from the processing state.
+    };
+
+    const sendMessage = async () => {
+        const userMessage = userInput.value.trim();
+        const userFile = fileInput.files[0];
+        if (!userMessage && !userFile) return;
+
+        let messageContent = '';
+        if (userMessage) {
+            messageContent = userMessage.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+
+        if (userFile) {
+            if (messageContent) {
+                messageContent += '<br>';
+            }
+            messageContent += `<i>File terlampir: ${userFile.name}</i>`;
+        }
+
+        if (messageContent) {
+            addMessage(messageContent, 'user');
+        }
+        
+        userInput.value = '';
+        toggleProcessingState(true);
+
+        const loadingBubble = addMessage(
+            '<div class="processing-spinner" style="display: inline-block; width: 18px; height: 18px; margin-right: 8px; vertical-align: middle;"></div> Menganalisis...',
+            'bot'
+        );
+
+        const formData = new FormData();
+        formData.append('message', userMessage);
+        formData.append('sessionId', sessionId);
+        if (userFile) {
+            formData.append('file', userFile);
+        }
+
+        try {
+            const fetchOptions = { method: 'POST', body: formData, headers: {}, };
+            if (API_KEY) { fetchOptions.headers['X-API-KEY'] = API_KEY; }
+            const response = await fetch(N8N_WEBHOOK_URL, fetchOptions);
+            
+            if (!response.ok) { throw new Error(`HTTP error! Status: ${response.status}`); }
+
+            const data = await response.json();
+            const botReplyMarkdown = data.reply || 'Maaf, saya tidak menerima balasan yang valid.';
+            const botReplyHtml = converter.makeHtml(botReplyMarkdown);
+            
+            loadingBubble.querySelector('.text').innerHTML = botReplyHtml;
+
+        } catch (error) {
+            console.error('Error:', error);
+            loadingBubble.querySelector('.text').innerHTML = `Terjadi kesalahan: ${error.message}`;
+        } finally {
+            toggleProcessingState(false);
+            fileInput.value = '';
+            attachmentIndicator.style.display = 'none';
+            userInput.placeholder = 'Ketik pesan atau lampirkan file...';
+        }
+    };
+
+    // --- EVENT LISTENERS ---
+    sendButton.addEventListener('click', sendMessage);
+    userInput.addEventListener('keypress', (event) => { if (event.key === 'Enter') sendMessage(); });
+    
+    fileInput.addEventListener('change', () => {
+        if (fileInput.files.length > 0) {
+            attachmentFilename.textContent = fileInput.files[0].name;
+            attachmentIndicator.style.display = 'flex';
+            userInput.placeholder = 'Ketik pesan (opsional) lalu kirim';
+        }
+    });
+
+    removeAttachmentBtn.addEventListener('click', () => {
+        fileInput.value = '';
+        attachmentIndicator.style.display = 'none';
+        userInput.placeholder = 'Ketik pesan atau lampirkan file...';
+    });
+</script>
+
+</body>
+</html>
